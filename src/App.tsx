@@ -263,7 +263,7 @@ const PieceView = ({
     >
       <span
         className={`text-2xl md:text-3xl font-bold leading-none drop-shadow-sm
-        ${type === "K" ? "text-[#806000]" : meta.promoted ? "text-[#000000]" : "text-[#634C32]"}
+        ${type === "K" ? "text-[#806000]" : meta.promoted ? (enemy ? "text-[#000000]" : "text-[#FF5A5A]") : "text-[#634C32]"}
         `}
       >
         {meta.icon}
@@ -1099,11 +1099,6 @@ export default function App() {
                       {errorMsg}
                     </div>
                   )}
-                  {solved && (
-                    <div className="bg-[#C4E4C4] border-2 border-[#8DBF8D] text-[#4A7A4A] font-bold px-6 py-2 rounded-full shadow-lg text-xl flex items-center gap-2 animate-pulse mt-12">
-                      <CheckCircle /> 正解！
-                    </div>
-                  )}
                 </div>
 
                 {/* Board */}
@@ -1165,7 +1160,14 @@ export default function App() {
                       {timerActive ? "タイマー停止" : "5分タイマー"}
                     </button>
                   </div>
-                  <div className="flex flex-wrap gap-2 min-h-[72px] bg-[#FFEEDD] p-3 border-[3px] border-dashed border-[#F8D38D] rounded-[24px]">
+                  <div className="flex flex-wrap gap-2 min-h-[72px] bg-[#FFEEDD] p-3 border-[3px] border-dashed border-[#F8D38D] rounded-[24px] relative">
+                    {solved && (
+                      <div className="absolute inset-0 flex items-center justify-center z-20 pointer-events-none">
+                        <div className="bg-[#C4E4C4] border-2 border-[#8DBF8D] text-[#4A7A4A] font-bold px-6 py-2 rounded-full shadow-lg text-xl flex items-center gap-2 animate-pulse">
+                          <CheckCircle /> 正解！
+                        </div>
+                      </div>
+                    )}
                     {hand.length === 0 && !solved && (
                       <div className="text-[#634C32]/40 font-bold m-auto">
                         なし
