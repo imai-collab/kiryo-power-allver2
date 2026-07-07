@@ -305,6 +305,39 @@ export default function App() {
   const [isImporting, setIsImporting] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
   const jsonFileInputRef = useRef<HTMLInputElement>(null);
+  const [timeLeft, setTimeLeft] = useState<number>(300);
+  const [timerActive, setTimerActive] = useState(false);
+  const [showTimerEnd, setShowTimerEnd] = useState(false);
+
+  useEffect(() => {
+    let interval: ReturnType<typeof setInterval>;
+    if (timerActive && timeLeft > 0) {
+      interval = setInterval(() => {
+        setTimeLeft((prev) => prev - 1);
+      }, 1000);
+    } else if (timerActive && timeLeft === 0) {
+      setTimerActive(false);
+      setShowTimerEnd(true);
+    }
+    return () => clearInterval(interval);
+  }, [timerActive, timeLeft]);
+
+  const toggleTimer = () => {
+    if (timerActive) {
+      setTimerActive(false);
+    } else {
+      setTimeLeft(300);
+      setTimerActive(true);
+      setShowTimerEnd(false);
+    }
+  };
+
+  const formatTime = (seconds: number) => {
+    const m = Math.floor(seconds / 60);
+    const s = seconds % 60;
+    return `${m}:${s.toString().padStart(2, '0')}`;
+  };
+
   const [editPieceInfo, setEditPieceInfo] = useState<{
     type: PieceType | "delete";
     enemy: boolean;
@@ -849,6 +882,29 @@ export default function App() {
         )}
       </AnimatePresence>
 
+      <AnimatePresence>
+        {showTimerEnd && (
+          <motion.div
+            initial={{ opacity: 0, scale: 0.8 }}
+            animate={{ opacity: 1, scale: 1 }}
+            exit={{ opacity: 0, scale: 0.8 }}
+            className="fixed inset-0 bg-black/60 z-[120] flex items-center justify-center p-4 backdrop-blur-sm"
+            onClick={() => setShowTimerEnd(false)}
+          >
+            <div className="bg-[#FFFFFF] border-8 border-[#FF5A5A] rounded-[40px] p-10 shadow-2xl flex flex-col items-center gap-6 max-w-sm w-full text-center" onClick={e => e.stopPropagation()}>
+              <h2 className="text-5xl font-black text-[#FF5A5A] tracking-wider">終了！</h2>
+              <p className="text-xl font-bold text-[#634C32]">5分経過しましたにゃ！</p>
+              <button 
+                onClick={() => setShowTimerEnd(false)}
+                className="mt-4 w-full py-4 bg-[#FFADAD] hover:bg-[#ff9999] text-white font-bold rounded-2xl shadow-[0_4px_0_#e68a8a] active:shadow-[0_0px_0_#e68a8a] active:translate-y-1 transition-all text-xl"
+              >
+                とじる
+              </button>
+            </div>
+          </motion.div>
+        )}
+      </AnimatePresence>
+
       {/* Promotion Dialog */}
       <AnimatePresence>
         {promotionPending && (
@@ -1089,9 +1145,26 @@ export default function App() {
 
                 {/* Hand Area */}
                 <div className="mt-6 flex flex-col gap-2">
-                  <h3 className="font-bold text-[#634C32] flex items-center gap-2 ml-1">
-                    持ち駒
-                  </h3>
+                  <div className="flex items-center justify-between ml-1 relative">
+                    <h3 className="font-bold text-[#634C32] flex items-center gap-2">
+                      持ち駒
+                    </h3>
+                    {(timerActive || timeLeft < 300) && (
+                      <div className="absolute left-1/2 -translate-x-1/2 font-bold text-xl text-[#FF5A5A] tabular-nums bg-white px-3 py-1 rounded-xl border-2 border-[#FFADAD] z-10 shadow-sm">
+                        {formatTime(timeLeft)}
+                      </div>
+                    )}
+                    <button 
+                      onClick={toggleTimer}
+                      className={`px-3 py-1.5 rounded-xl font-bold text-sm shadow-sm transition-all active:translate-y-px active:shadow-none ${
+                        timerActive 
+                          ? 'bg-white border-2 border-[#FF5A5A] text-[#FF5A5A] hover:bg-[#FFEFEF]'
+                          : 'bg-[#FFADAD] text-white hover:bg-[#ff9999] shadow-[0_4px_0_#e68a8a] active:shadow-[0_0px_0_#e68a8a]'
+                      }`}
+                    >
+                      {timerActive ? "タイマー停止" : "5分タイマー"}
+                    </button>
+                  </div>
                   <div className="flex flex-wrap gap-2 min-h-[72px] bg-[#FFEEDD] p-3 border-[3px] border-dashed border-[#F8D38D] rounded-[24px]">
                     {hand.length === 0 && !solved && (
                       <div className="text-[#634C32]/40 font-bold m-auto">
