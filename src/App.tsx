@@ -655,8 +655,12 @@ export default function App() {
         setTimeout(() => {
           setErrorMsg("王手じゃないにゃ...");
           setTimeout(() => {
-            setBoard(currentPuzzle.board);
-            setHand(currentPuzzle.hand);
+            if (timerActive) {
+              nextPuzzle();
+            } else {
+              setBoard(currentPuzzle.board);
+              setHand(currentPuzzle.hand);
+            }
             setErrorMsg(null);
             setAnimating(false);
           }, 1000);
@@ -714,8 +718,12 @@ export default function App() {
             }
           }));
           setTimeout(() => {
-            setBoard(currentPuzzle.board);
-            setHand(currentPuzzle.hand);
+            if (timerActive) {
+              nextPuzzle();
+            } else {
+              setBoard(currentPuzzle.board);
+              setHand(currentPuzzle.hand);
+            }
             setErrorMsg(null);
             setAnimating(false);
           }, 1000);
@@ -1207,7 +1215,25 @@ export default function App() {
             {/* Status Card (Right) */}
             <div className="w-full max-w-[420px] lg:w-[340px] bg-[#FFFFFF] rounded-[32px] border-[6px] border-[#FFADAD] p-5 flex flex-col gap-4 shadow-sm h-fit">
               <div className="bg-[#FFADAD] text-white px-4 py-2 rounded-2xl text-sm self-stretch font-bold space-y-1">
-                <div>今のせいせき</div>
+                <div className="flex justify-between items-center mb-1">
+                  <div>今のせいせき</div>
+                  <button
+                    onClick={() => {
+                      setCorrectCount(0);
+                      setMistakeCount(0);
+                      setPuzzleResults({});
+                      setCombo(0);
+                      setStarted(false);
+                      setIsRandomMode(false);
+                      setPuzzleIdx(0);
+                      setTimerActive(false);
+                      setTimeLeft(300);
+                    }}
+                    className="bg-white text-[#FF5A5A] px-2 py-1 rounded-lg text-xs hover:bg-[#FFEFEF] active:scale-95 transition-all shadow-sm"
+                  >
+                    リセット
+                  </button>
+                </div>
                 <div className="flex justify-between items-center text-xs opacity-90">
                   <span>正解した問題数:</span>
                   <span>{correctCount}問</span>
@@ -1327,19 +1353,22 @@ export default function App() {
                           setPuzzleIdx(idx);
                           setIsEditMode(false);
                         }}
-                        className={`aspect-square rounded-xl flex items-center justify-center font-bold text-sm sm:text-base border-2 cursor-pointer hover:opacity-80 transition-opacity
+                        className={`aspect-square rounded-xl flex flex-col items-center justify-center font-bold text-sm sm:text-base border-2 cursor-pointer hover:opacity-80 transition-opacity
                         ${
                           puzzleResults[idx]?.solved
                             ? idx === puzzleIdx
-                              ? "bg-[#C4E4C4] border-4 border-[#4A7A4A] text-[#4A7A4A]"
+                              ? "bg-[#A3E6A3] border-4 border-[#4A7A4A] text-[#2A5A2A]"
                               : "bg-[#C4E4C4] border-[#8DBF8D] text-[#4A7A4A]"
                             : idx === puzzleIdx
-                              ? "bg-[#FFADAD] border-[#FFADAD] text-white"
+                              ? "bg-[#FF5A5A] border-4 border-[#D04040] text-white"
                               : "bg-[#FFEFEF] border-[#FFADAD] text-[#FF7A7A]"
                         }
                       `}
                       >
-                        {idx + 1}
+                        <div>{idx + 1}</div>
+                        <div className="text-[10px] font-normal leading-none mt-1 opacity-90">
+                          ミス: {puzzleResults[idx]?.mistakes || 0}
+                        </div>
                       </div>
                     );
                   })}
