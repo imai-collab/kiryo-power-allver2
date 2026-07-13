@@ -843,15 +843,8 @@ export default function App() {
     const allSolved = puzzles.every((_, idx) => isSolved(idx));
 
     if (allSolved) {
-      if (isRandomMode && puzzles.length > 1) {
-        let nextIdx;
-        do {
-          nextIdx = Math.floor(Math.random() * puzzles.length);
-        } while (nextIdx === puzzleIdx);
-        setPuzzleIdx(nextIdx);
-      } else {
-        setPuzzleIdx((p) => (p + 1) % puzzles.length);
-      }
+      setPuzzleIdx(puzzles.length);
+      confetti({ particleCount: 200, spread: 100, origin: { y: 0.3 } });
       return;
     }
 
@@ -1083,26 +1076,53 @@ export default function App() {
             animate={{ opacity: 1, scale: 1 }}
             className="w-full max-w-sm bg-[#FFFFFF] rounded-[40px] border-[8px] border-[#F8D38D] shadow-[0_15px_0_#EBC274] flex flex-col items-center p-[30px] relative text-center space-y-6"
           >
-            <div className="text-6xl mb-2 animate-bounce">🎌</div>
-            <h1 className="text-3xl font-black text-[#634C32]">全問クリア！</h1>
-            <p className="text-[#634C32] font-medium">
-              おめでとうにゃ！すごい！
+            <div className="text-6xl mb-2 animate-bounce">🎊</div>
+            <h1 className="text-3xl font-black text-[#FF5A5A] drop-shadow-sm">全問正解！</h1>
+            <p className="text-[#634C32] font-medium text-lg">
+              すべての問題をクリアしたにゃ！
+              <br />
+              おめでとうにゃ！天才かも！
             </p>
-            <div className="w-full space-y-3">
+            {mistakeCount === 0 && (
+              <motion.div 
+                initial={{ scale: 0 }}
+                animate={{ scale: 1 }}
+                transition={{ type: "spring", bounce: 0.5, delay: 0.2 }}
+                className="text-[#FF5A5A] font-bold text-xl bg-[#FFEFEF] border-4 border-[#FFADAD] px-6 py-3 rounded-2xl"
+              >
+                🌟 ノーミス達成！ 🌟
+              </motion.div>
+            )}
+            <div className="w-full space-y-3 mt-4">
               <button
-                onClick={() => setPuzzleIdx(0)}
+                onClick={() => {
+                  setCorrectCount(0);
+                  setMistakeCount(0);
+                  setPuzzleResults({});
+                  setCombo(0);
+                  setPuzzleIdx(0);
+                  setIsRandomMode(false);
+                  setTimerActive(false);
+                  setTimeLeft(300);
+                }}
                 className="w-full py-4 bg-[#FFADAD] hover:bg-[#ff9999] text-white font-bold rounded-2xl shadow-[0_4px_0_#e68a8a] active:shadow-[0_0px_0_#e68a8a] active:translate-y-1 transition-all flex items-center justify-center gap-2"
               >
-                <RefreshCcw size={18} /> もう一度遊ぶ
+                <RefreshCcw size={18} /> 最初からやり直す
               </button>
               <button
                 onClick={() => {
+                  setCorrectCount(0);
+                  setMistakeCount(0);
+                  setPuzzleResults({});
+                  setCombo(0);
                   setIsRandomMode(true);
                   setPuzzleIdx(Math.floor(Math.random() * puzzles.length));
+                  setTimerActive(false);
+                  setTimeLeft(300);
                 }}
                 className="w-full py-4 bg-[#F8D38D] hover:bg-[#ebc274] text-[#634C32] font-bold rounded-2xl shadow-[0_4px_0_#dca044] active:shadow-[0_0px_0_#dca044] active:translate-y-1 transition-all flex items-center justify-center gap-2"
               >
-                ランダムな問題で遊ぶ
+                ランダムでやり直す
               </button>
             </div>
           </motion.div>
