@@ -838,14 +838,40 @@ export default function App() {
   const nextPuzzle = () => {
     setSolved(false);
     setSelected(null);
+    
+    const isSolved = (idx: number) => puzzleResults[idx]?.solved;
+    const allSolved = puzzles.every((_, idx) => isSolved(idx));
+
+    if (allSolved) {
+      if (isRandomMode && puzzles.length > 1) {
+        let nextIdx;
+        do {
+          nextIdx = Math.floor(Math.random() * puzzles.length);
+        } while (nextIdx === puzzleIdx);
+        setPuzzleIdx(nextIdx);
+      } else {
+        setPuzzleIdx((p) => (p + 1) % puzzles.length);
+      }
+      return;
+    }
+
     if (isRandomMode && puzzles.length > 1) {
-      let nextIdx;
-      do {
-        nextIdx = Math.floor(Math.random() * puzzles.length);
-      } while (nextIdx === puzzleIdx);
-      setPuzzleIdx(nextIdx);
+      const unsolvedIndices = puzzles.map((_, i) => i).filter(i => !isSolved(i) && i !== puzzleIdx);
+      if (unsolvedIndices.length > 0) {
+        const nextIdx = unsolvedIndices[Math.floor(Math.random() * unsolvedIndices.length)];
+        setPuzzleIdx(nextIdx);
+      } else {
+        // Current puzzle is the only unsolved one left
+        setPuzzleIdx(puzzleIdx);
+      }
     } else {
-      setPuzzleIdx((p) => p + 1);
+      for (let i = 1; i <= puzzles.length; i++) {
+        const nextIdx = (puzzleIdx + i) % puzzles.length;
+        if (!isSolved(nextIdx)) {
+          setPuzzleIdx(nextIdx);
+          break;
+        }
+      }
     }
   };
 
