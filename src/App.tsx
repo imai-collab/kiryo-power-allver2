@@ -293,6 +293,7 @@ export default function App() {
   const [mistakeCount, setMistakeCount] = useState(0);
   const [puzzleResults, setPuzzleResults] = useState<Record<number, { solved: boolean; mistakes: number }>>({});
   const [showResultsModal, setShowResultsModal] = useState(false);
+  const [showClearScreen, setShowClearScreen] = useState(false);
   const [isRandomMode, setIsRandomMode] = useState(false);
   const [promotionPending, setPromotionPending] = useState<{
     from: string | null;
@@ -836,17 +837,18 @@ export default function App() {
   };
 
   const nextPuzzle = () => {
-    setSolved(false);
-    setSelected(null);
-    
     const isSolved = (idx: number) => puzzleResults[idx]?.solved;
     const allSolved = puzzles.every((_, idx) => isSolved(idx));
 
     if (allSolved) {
-      setPuzzleIdx(puzzles.length);
+      setShowClearScreen(true);
+      setTimerActive(false);
       confetti({ particleCount: 200, spread: 100, origin: { y: 0.3 } });
       return;
     }
+
+    setSolved(false);
+    setSelected(null);
 
     if (isRandomMode && puzzles.length > 1) {
       const unsolvedIndices = puzzles.map((_, i) => i).filter(i => !isSolved(i) && i !== puzzleIdx);
@@ -884,24 +886,37 @@ export default function App() {
                 <button onClick={() => setShowResultsModal(false)} className="text-[#634C32] font-bold text-xl hover:text-[#FF5A5A]">✕</button>
               </div>
               <div className="overflow-y-auto space-y-2 pr-2">
-                {Object.entries(puzzleResults).filter(([_, result]) => result.mistakes > 0).length === 0 ? (
+                {(Object.entries(puzzleResults) as [string, { solved: boolean; mistakes: number }][]).filter(([_, result]) => result.mistakes > 0).length === 0 ? (
                   <div className="text-center text-[#634C32]/60 py-4 font-bold">間違えた問題はないにゃ</div>
                 ) : (
-                  Object.entries(puzzleResults)
+                  (Object.entries(puzzleResults) as [string, { solved: boolean; mistakes: number }][])
                     .filter(([_, result]) => result.mistakes > 0)
-                    .map(([idxStr, result]) => (
-                    <div key={idxStr} className="flex justify-between items-center bg-[#FFEFEF] p-3 rounded-xl border-2 border-[#FFADAD]">
-                      <div className="font-bold text-[#634C32]">第{parseInt(idxStr) + 1}問</div>
-                      <div className="flex gap-4 font-bold text-sm">
-                        <div className={`${result.solved ? 'text-[#4A7A4A]' : 'text-[#634C32]/50'}`}>
-                          {result.solved ? '正解！' : '未クリア'}
-                        </div>
-                        <div className="text-[#FF5A5A]">
-                          ミス: {result.mistakes}回
+                    .map(([idxStr, result]) => {
+                      const problemIndex = parseInt(idxStr);
+                      return (
+                      <div 
+                        key={idxStr} 
+                        onClick={() => {
+                          setPuzzleIdx(problemIndex);
+                          setShowResultsModal(false);
+                          setShowClearScreen(false); // Make sure clear screen is closed too, just in case
+                        }}
+                        className="flex justify-between items-center bg-[#FFEFEF] p-3 rounded-xl border-2 border-[#FFADAD] cursor-pointer hover:bg-[#FFD6D6] transition-colors"
+                      >
+                        <div className="font-bold text-[#634C32]">第{problemIndex + 1}問</div>
+                        <div className="flex gap-4 font-bold text-sm items-center">
+                          <div className={`${result.solved ? 'text-[#4A7A4A]' : 'text-[#634C32]/50'}`}>
+                            {result.solved ? '正解！' : '未クリア'}
+                          </div>
+                          <div className="text-[#FF5A5A]">
+                            ミス: {result.mistakes}回
+                          </div>
+                          <div className="text-[#FFADAD]">
+                            <ArrowRight size={16} />
+                          </div>
                         </div>
                       </div>
-                    </div>
-                  ))
+                    )})
                 )}
               </div>
             </div>
@@ -1069,7 +1084,7 @@ export default function App() {
               </button>
             </div>
           </motion.div>
-        ) : puzzleIdx >= puzzles.length ? (
+        ) : showClearScreen ? (
           <motion.div
             key="end"
             initial={{ opacity: 0, scale: 0.9 }}
@@ -1096,6 +1111,7 @@ export default function App() {
             <div className="w-full space-y-3 mt-4">
               <button
                 onClick={() => {
+                  setShowClearScreen(false);
                   setCorrectCount(0);
                   setMistakeCount(0);
                   setPuzzleResults({});
@@ -1111,6 +1127,7 @@ export default function App() {
               </button>
               <button
                 onClick={() => {
+                  setShowClearScreen(false);
                   setCorrectCount(0);
                   setMistakeCount(0);
                   setPuzzleResults({});
@@ -1123,6 +1140,12 @@ export default function App() {
                 className="w-full py-4 bg-[#F8D38D] hover:bg-[#ebc274] text-[#634C32] font-bold rounded-2xl shadow-[0_4px_0_#dca044] active:shadow-[0_0px_0_#dca044] active:translate-y-1 transition-all flex items-center justify-center gap-2"
               >
                 ランダムでやり直す
+              </button>
+              <button
+                onClick={() => setShowClearScreen(false)}
+                className="w-full py-4 bg-[#EAE8E3] hover:bg-[#DEDCD7] text-[#634C32] font-bold rounded-2xl shadow-[0_4px_0_#CCCCCC] active:shadow-[0_0px_0_#CCCCCC] active:translate-y-1 transition-all flex items-center justify-center gap-2"
+              >
+                閉じる
               </button>
             </div>
           </motion.div>
