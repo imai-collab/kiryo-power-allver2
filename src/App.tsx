@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useMemo, useRef } from "react";
 import confetti from "canvas-confetti";
-import { RefreshCcw, ArrowRight, Play, CheckCircle, ArrowLeft, Trash2 } from "lucide-react";
+import { RefreshCcw, ArrowRight, Play, CheckCircle, ArrowLeft, Trash2, ExternalLink } from "lucide-react";
 import { motion, AnimatePresence } from "motion/react";
 import { GoogleGenAI, Type } from "@google/genai";
 
@@ -294,6 +294,9 @@ export default function App() {
   const [puzzleResults, setPuzzleResults] = useState<Record<number, { solved: boolean; mistakes: number }>>({});
   const [showResultsModal, setShowResultsModal] = useState(false);
   const [showClearScreen, setShowClearScreen] = useState(false);
+  const [clearUrl, setClearUrl] = useState<string>(
+    () => localStorage.getItem("shogi_clear_url") || "https://ais-pre-e33pm4ybmbloliwg56zgz7-87151204104.asia-northeast1.run.app/complete?book=01"
+  );
   const [isRandomMode, setIsRandomMode] = useState(false);
   const [promotionPending, setPromotionPending] = useState<{
     from: string | null;
@@ -340,7 +343,7 @@ export default function App() {
   };
 
   const [editPieceInfo, setEditPieceInfo] = useState<{
-    type: PieceType | "delete";
+    type: PieceType | "delete" | "move";
     enemy: boolean;
   }>({ type: "P", enemy: false });
 
@@ -562,6 +565,15 @@ export default function App() {
 
   const validMoves = useMemo(() => {
     if (!selected) return [];
+    if (isEditMode && editPieceInfo.type === "move") {
+      const res = [];
+      for (let i = 0; i < 36; i++) {
+        const c = i % 6;
+        const r = Math.floor(i / 6);
+        res.push(`${c},${r}`);
+      }
+      return res;
+    }
     if (selected.from === null) {
       const res = [];
       for (let i = 0; i < 36; i++) {
@@ -576,7 +588,7 @@ export default function App() {
       const [sc, sr] = selected.from.split(",").map(Number);
       return getValidMoves(sc, sr, board);
     }
-  }, [selected, board]);
+  }, [selected, board, isEditMode, editPieceInfo.type]);
 
   const executeMove = (
     from: string | null,
@@ -742,6 +754,36 @@ export default function App() {
         const newBoard = { ...board };
         delete newBoard[key];
         setBoard(newBoard);
+      } else if (editPieceInfo.type === "move") {
+        if (selected) {
+          if (selected.from === key) {
+            setSelected(null);
+          } else if (selected.from !== null) {
+            const newBoard = { ...board };
+            const p = newBoard[selected.from];
+            delete newBoard[selected.from];
+            newBoard[key] = p;
+            setBoard(newBoard);
+            setSelected(null);
+          } else if (selected.from === null && selected.handIdx !== undefined) {
+            // Drop from hand
+            const newHand = [...hand];
+            const p = newHand.splice(selected.handIdx, 1)[0];
+            setHand(newHand);
+            setBoard({
+              ...board,
+              [key]: {
+                type: p,
+                enemy: false
+              }
+            });
+            setSelected(null);
+          }
+        } else {
+          if (board[key]) {
+            setSelected({ from: key, pieceType: board[key].type });
+          }
+        }
       } else {
         setBoard({
           ...board,
@@ -823,9 +865,17 @@ export default function App() {
   const handleHandClick = (idx: number, pieceType: PieceType) => {
     if (animating) return;
     if (isEditMode) {
-      const newHand = [...hand];
-      newHand.splice(idx, 1);
-      setHand(newHand);
+      if (editPieceInfo.type === "move") {
+        if (selected?.handIdx === idx) {
+          setSelected(null);
+        } else {
+          setSelected({ from: null, pieceType, handIdx: idx });
+        }
+      } else {
+        const newHand = [...hand];
+        newHand.splice(idx, 1);
+        setHand(newHand);
+      }
       return;
     }
     if (solved || !currentPuzzle) return;
@@ -1111,6 +1161,16 @@ export default function App() {
             <div className="w-full space-y-3 mt-4">
               <button
                 onClick={() => {
+                  if (clearUrl) {
+                    window.open(clearUrl, "_blank", "noopener,noreferrer");
+                  }
+                }}
+                className="w-full py-4 bg-[#4CAF50] hover:bg-[#43A047] text-white font-bold rounded-2xl shadow-[0_4px_0_#2E7D32] active:shadow-[0_0px_0_#2E7D32] active:translate-y-1 transition-all flex items-center justify-center gap-2 text-lg"
+              >
+                <ExternalLink size={20} /> クリア登録
+              </button>
+              <button
+                onClick={() => {
                   setShowClearScreen(false);
                   setCorrectCount(0);
                   setMistakeCount(0);
@@ -1336,81 +1396,86 @@ export default function App() {
               </div>
 
               <div className="mt-4">
-                <div className="flex items-center justify-between mb-2">
-                  <h3 className="font-bold text-[#634C32] flex items-center gap-2">
-                    もんだい いちらん
-                    <button 
-                      onClick={() => setIsRandomMode(p => !p)}
-                      className={`text-xs px-2 py-0.5 rounded-lg border-2 transition-all font-bold ${
-                        isRandomMode 
-                          ? "bg-purple-500 border-purple-700 text-white hover:bg-purple-600 shadow-inner" 
-                          : "bg-purple-100 border-purple-300 text-purple-700 hover:bg-purple-200"
-                      }`}
-                    >
-                      ランダム出題: {isRandomMode ? "ON" : "OFF"}
-                    </button>
-                  </h3>
-                  {isEditMode && (
-                    <div className="flex flex-wrap items-center justify-end gap-2">
-                    <button
-                      onClick={() => {
-                        const dataStr = "data:text/json;charset=utf-8," + encodeURIComponent(JSON.stringify(puzzles, null, 2));
-                        const downloadAnchorNode = document.createElement('a');
-                        downloadAnchorNode.setAttribute("href",     dataStr);
-                        downloadAnchorNode.setAttribute("download", "doubutsu-shogi-puzzles.json");
-                        document.body.appendChild(downloadAnchorNode); // required for firefox
-                        downloadAnchorNode.click();
-                        downloadAnchorNode.remove();
-                        alert("問題データをJSONファイルとしてダウンロードしました！\nこのファイルを使用して、別の環境で「ファイル読み込み」から復元できます。");
-                      }}
-                      className="text-xs px-3 py-1 font-bold rounded-lg border-2 bg-[#EAE8E3] border-[#CCCCCC] text-[#634C32] hover:bg-[#D9D9D9] transition-all"
-                    >
-                      データ出力
-                    </button>
-                    <input
-                      type="file"
-                      accept=".json"
-                      ref={jsonFileInputRef}
-                      className="hidden"
-                      onChange={handleJsonUpload}
-                    />
-                    <button
-                      onClick={() => jsonFileInputRef.current?.click()}
-                      className="text-xs px-3 py-1 font-bold rounded-lg border-2 bg-[#E1F5FE] border-[#0288D1] text-[#01579B] hover:bg-[#B3E5FC] transition-all"
-                    >
-                      ファイル読込
-                    </button>
-                    <input
-                      type="file"
-                      accept="application/pdf"
-                      ref={fileInputRef}
-                      className="hidden"
-                      onChange={handleFileUpload}
-                     />
-                    <button
-                      onClick={() => fileInputRef.current?.click()}
-                      disabled={isImporting}
-                      className={`text-xs px-3 py-1 font-bold rounded-lg border-2 transition-all ${isImporting ? "bg-gray-200 border-gray-300 text-gray-500 cursor-not-allowed" : "bg-[#FFF4D2] border-[#D9A300] text-[#806000] hover:bg-[#ffeaaa]"}`}
-                    >
-                      {isImporting ? "読込中..." : "PDFから追加"}
-                    </button>
-                    <button
-                      onClick={async () => {
-                        const jsonStr = JSON.stringify(puzzles, null, 2);
-                        try {
-                          await navigator.clipboard.writeText(jsonStr);
-                          alert("クリップボードに問題データをコピーしました！\n\n【GitHubへ同期する手順】\n1. 左側のファイルツリーから「src/puzzles.json」を開く\n2. 中身をすべて選択して、今コピーしたデータを貼り付ける（上書き）\n3. メニューから「Sync to GitHub」を実行する\n\n※コンテナ内で保存したファイルはGitHub同期の対象にならないため、この手動手順が必要です。");
-                        } catch(e) {
-                          alert("コピーに失敗しました。データ出力ボタンからダウンロードしてください。");
-                        }
-                      }}
-                      className="text-xs px-3 py-1 font-bold flex items-center gap-1 rounded-lg bg-[#EAE8E3] border-2 border-[#DEDCD7] hover:bg-[#DEDCD7] text-[#634C32] transition-colors"
-                    >
-                      <RefreshCcw size={14} />
-                      JSONをコピーして保存（GitHub同期用）
-                    </button>
+                {isEditMode && (
+                  <div className="space-y-2 mb-3">
+                    <div className="grid grid-cols-3 gap-2">
+                      <button
+                        onClick={() => {
+                          const dataStr = "data:text/json;charset=utf-8," + encodeURIComponent(JSON.stringify(puzzles, null, 2));
+                          const downloadAnchorNode = document.createElement('a');
+                          downloadAnchorNode.setAttribute("href", dataStr);
+                          downloadAnchorNode.setAttribute("download", "doubutsu-shogi-puzzles.json");
+                          document.body.appendChild(downloadAnchorNode);
+                          downloadAnchorNode.click();
+                          downloadAnchorNode.remove();
+                          alert("問題データをJSONファイルとしてダウンロードしました！\nこのファイルを使用して、別の環境で「ファイル読み込み」から復元できます。");
+                        }}
+                        className="w-full text-xs py-1.5 font-bold rounded-lg border-2 bg-[#EAE8E3] border-[#CCCCCC] text-[#634C32] hover:bg-[#D9D9D9] transition-all text-center flex items-center justify-center"
+                      >
+                        データ出力
+                      </button>
+                      <input
+                        type="file"
+                        accept=".json"
+                        ref={jsonFileInputRef}
+                        className="hidden"
+                        onChange={handleJsonUpload}
+                      />
+                      <button
+                        onClick={() => jsonFileInputRef.current?.click()}
+                        className="w-full text-xs py-1.5 font-bold rounded-lg border-2 bg-[#E1F5FE] border-[#0288D1] text-[#01579B] hover:bg-[#B3E5FC] transition-all text-center flex items-center justify-center"
+                      >
+                        FILE読込
+                      </button>
+                      <input
+                        type="file"
+                        accept="application/pdf"
+                        ref={fileInputRef}
+                        className="hidden"
+                        onChange={handleFileUpload}
+                      />
+                      <button
+                        onClick={() => fileInputRef.current?.click()}
+                        disabled={isImporting}
+                        className={`w-full text-xs py-1.5 font-bold rounded-lg border-2 transition-all text-center flex items-center justify-center ${
+                          isImporting ? "bg-gray-200 border-gray-300 text-gray-500 cursor-not-allowed" : "bg-[#FFF4D2] border-[#D9A300] text-[#806000] hover:bg-[#ffeaaa]"
+                        }`}
+                      >
+                        {isImporting ? "読込中..." : "PDF追加"}
+                      </button>
+                    </div>
+                    <div className="bg-[#FFF9E6] p-2.5 rounded-xl border-2 border-[#F8D38D] text-left">
+                      <label className="block text-xs font-bold text-[#634C32] mb-1">
+                        クリア登録URL:
+                      </label>
+                      <input
+                        type="text"
+                        value={clearUrl}
+                        onChange={(e) => {
+                          const val = e.target.value;
+                          setClearUrl(val);
+                          localStorage.setItem("shogi_clear_url", val);
+                        }}
+                        placeholder="https://..."
+                        className="w-full text-xs p-2 rounded-lg border-2 border-[#DEDCD7] focus:outline-none focus:border-[#FFADAD] bg-white text-[#634C32] font-mono"
+                      />
+                    </div>
                   </div>
-                  )}
+                )}
+                <div className="flex items-center justify-between mb-2">
+                  <h3 className="font-bold text-[#634C32]">
+                    もんだい いちらん
+                  </h3>
+                  <button 
+                    onClick={() => setIsRandomMode(p => !p)}
+                    className={`text-xs px-2.5 py-1 rounded-lg border-2 transition-all font-bold ${
+                      isRandomMode 
+                        ? "bg-purple-500 border-purple-700 text-white hover:bg-purple-600 shadow-inner" 
+                        : "bg-purple-100 border-purple-300 text-purple-700 hover:bg-purple-200"
+                    }`}
+                  >
+                    ランダム出題: {isRandomMode ? "ON" : "OFF"}
+                  </button>
                 </div>
                 <div className="grid grid-cols-5 gap-2">
                   {puzzles.slice(puzzlePage * PAGE_SIZE, (puzzlePage + 1) * PAGE_SIZE).map((_, i) => {
@@ -1577,18 +1642,22 @@ export default function App() {
                           "PL",
                           "PP",
                           "delete",
+                          "move",
                         ] as const
                       ).map((pt) => (
                         <div
                           key={pt}
                           className={`cursor-pointer aspect-square rounded-xl flex justify-center items-center font-bold text-sm transition-all
                             ${editPieceInfo.type === pt ? "ring-4 ring-[#FFADAD] scale-110 bg-white" : "bg-[#F7E7C3] hover:scale-105"}`}
-                          onClick={() =>
-                            setEditPieceInfo({ ...editPieceInfo, type: pt })
-                          }
+                          onClick={() => {
+                            setEditPieceInfo({ ...editPieceInfo, type: pt });
+                            setSelected(null);
+                          }}
                         >
                           {pt === "delete" ? (
                             <span className="text-[#FF5A5A]">消す</span>
+                          ) : pt === "move" ? (
+                            <span className="text-[#4A7A4A]">移動</span>
                           ) : (
                             <div className="w-[80%] h-[80%] relative pointer-events-none">
                               <PieceView
@@ -1604,20 +1673,25 @@ export default function App() {
 
                     <button
                       onClick={() => {
-                        if (editPieceInfo.type !== "delete") {
+                        if (editPieceInfo.type !== "delete" && editPieceInfo.type !== "move") {
                           setHand([...hand, editPieceInfo.type as PieceType]);
                         }
                       }}
-                      disabled={editPieceInfo.type === "delete"}
-                      className={`w-full py-2 font-bold rounded-lg mt-1 transition-colors ${editPieceInfo.type === "delete" ? "bg-gray-200 text-gray-400 cursor-not-allowed" : "bg-[#F8D38D] hover:bg-[#ebc274] text-[#634C32] shadow-sm active:translate-y-1 active:shadow-none"}`}
+                      disabled={editPieceInfo.type === "delete" || editPieceInfo.type === "move"}
+                      className={`w-full py-2 font-bold rounded-lg mt-1 transition-colors ${(editPieceInfo.type === "delete" || editPieceInfo.type === "move") ? "bg-gray-200 text-gray-400 cursor-not-allowed" : "bg-[#F8D38D] hover:bg-[#ebc274] text-[#634C32] shadow-sm active:translate-y-1 active:shadow-none"}`}
                     >
                       選択中の駒を持ち駒に追加
                     </button>
 
                     <div className="text-xs text-[#634C32] opacity-80 text-center leading-relaxed mt-1">
-                      盤面を押すと配置/削除できます。
-                      <br />
-                      持ち駒を押すと削除できます。
+                      {editPieceInfo.type === "move" ? (
+                        <>盤面や持ち駒の駒を選んで、移動先を押してください。</>
+                      ) : (
+                        <>
+                          盤面を押すと配置/削除できます。<br />
+                          持ち駒を押すと削除できます。
+                        </>
+                      )}
                     </div>
                   </div>
                 )}
